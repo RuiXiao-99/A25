@@ -1,0 +1,4 @@
+# Intelligent Engine Service Dependencies
+-r ../../../requirements.txt
+
+# Additional dependencies for intelligent engine
