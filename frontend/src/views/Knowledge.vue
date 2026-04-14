@@ -15,18 +15,18 @@
       <div class="toolbar">
         <el-input
           v-model="searchQuery"
-          placeholder="检索文档名称或包含的关键字..."
+          placeholder="检索文档名称..."
           prefix-icon="Search"
+          clearable
           style="width: 320px"
         />
-        <el-select v-model="statusFilter" placeholder="处理状态" style="width: 120px; margin-left: 12px">
-          <el-option label="全部状态" value="" />
+        <el-select v-model="statusFilter" placeholder="处理状态" clearable style="width: 120px; margin-left: 12px">
           <el-option label="已入库" value="success" />
           <el-option label="处理中" value="processing" />
         </el-select>
       </div>
 
-      <el-table :data="documentList" style="width: 100%" v-loading="loading">
+      <el-table :data="filteredList" style="width: 100%" v-loading="loading">
         <el-table-column label="文档名称" min-width="250">
           <template #default="scope">
             <div class="doc-name">
@@ -45,20 +45,15 @@
           </template>
         </el-table-column>
         <el-table-column label="操作" width="150" fixed="right">
-          <template #default>
-            <el-button link type="primary" size="small">预览</el-button>
-            <el-button link type="danger" size="small">删除</el-button>
+          <template #default="scope">
+            <el-button link type="primary" size="small" @click="handlePreview(scope.row)">预览</el-button>
+            <el-button link type="danger" size="small" @click="handleDelete(scope.row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
     </el-card>
 
-    <el-dialog
-      v-model="uploadDialogVisible"
-      title="上传知识文档"
-      width="500px"
-      destroy-on-close
-    >
+    <el-dialog v-model="uploadDialogVisible" title="上传知识文档" width="500px" destroy-on-close>
       <el-upload
         class="knowledge-uploader"
         drag
@@ -67,14 +62,7 @@
         :auto-upload="false"
       >
         <el-icon class="el-icon--upload"><upload-filled /></el-icon>
-        <div class="el-upload__text">
-          将文件拖到此处，或 <em>点击上传</em>
-        </div>
-        <template #tip>
-          <div class="el-upload__tip">
-            支持 .txt, .pdf, .docx, .md 格式文件。文件上传后将自动进行文本切分(Chunking)并存入向量数据库。
-          </div>
-        </template>
+        <div class="el-upload__text">将文件拖到此处，或 <em>点击上传</em></div>
       </el-upload>
       <template #footer>
         <span class="dialog-footer">
@@ -87,63 +75,64 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ref, computed } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 
 const loading = ref(false)
 const searchQuery = ref('')
 const statusFilter = ref('')
 const uploadDialogVisible = ref(false)
 
-// 模拟文档数据
 const documentList = ref([
   { id: 1, name: 'EduAgent系统操作手册.pdf', type: 'pdf', size: '2.4 MB', uploadTime: '2026-04-14 10:00', status: 'success' },
   { id: 2, name: 'Python机器学习进阶课件.docx', type: 'word', size: '1.1 MB', uploadTime: '2026-04-13 15:30', status: 'success' },
   { id: 3, name: '深度学习算法公式推导.md', type: 'markdown', size: '45 KB', uploadTime: '2026-04-14 11:05', status: 'processing' },
 ])
 
+// 增加前端过滤逻辑
+const filteredList = computed(() => {
+  return documentList.value.filter(doc => {
+    const matchName = doc.name.toLowerCase().includes(searchQuery.value.toLowerCase())
+    const matchStatus = statusFilter.value ? doc.status === statusFilter.value : true
+    return matchName && matchStatus
+  })
+})
+
 const getFileColor = (type: string) => {
-  const colorMap: Record<string, string> = {
-    pdf: '#ef4444',
-    word: '#3b82f6',
-    markdown: '#10b981',
-    txt: '#64748b'
-  }
+  const colorMap: Record<string, string> = { pdf: '#ef4444', word: '#3b82f6', markdown: '#10b981', txt: '#64748b' }
   return colorMap[type] || '#64748b'
 }
 
 const handleUploadSubmit = () => {
-  ElMessage.success('文档已提交给后端，正在使用 LangChain 进行切分和嵌入...')
+  ElMessage.success('文档已提交给后端，正在进行切分和嵌入...')
   uploadDialogVisible.value = false
+}
+
+// --- 新增的交互逻辑 ---
+
+const handlePreview = (row: any) => {
+  ElMessage.info(`正在生成【${row.name}】的在线预览...`)
+}
+
+const handleDelete = (row: any) => {
+  ElMessageBox.confirm(
+    `确定要从向量数据库中删除 "${row.name}" 吗？相应的知识问答将不再包含此内容。`,
+    '删除确认',
+    { confirmButtonText: '删除', cancelButtonText: '取消', type: 'error' }
+  ).then(() => {
+    documentList.value = documentList.value.filter(item => item.id !== row.id)
+    ElMessage.success('文档已从知识库移除')
+  }).catch(() => {})
 }
 </script>
 
 <style lang="scss" scoped>
 .knowledge-container {
-  .toolbar {
-    display: flex;
-    margin-bottom: 20px;
-  }
-
-  .doc-name {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-weight: 500;
-    color: #1e293b;
-  }
+  .toolbar { display: flex; margin-bottom: 20px; }
+  .doc-name { display: flex; align-items: center; gap: 10px; font-weight: 500; color: #1e293b; }
 }
-
-.knowledge-uploader {
-  :deep(.el-upload-dragger) {
-    border-radius: 8px;
-    background: #f8fafc;
-    transition: all 0.3s;
-    
-    &:hover {
-      background: #f0f7ff;
-      border-color: var(--primary-color);
-    }
-  }
+.knowledge-uploader :deep(.el-upload-dragger) {
+  border-radius: 8px; background: #f8fafc; transition: all 0.3s;
+  &:hover { background: #f0f7ff; border-color: var(--primary-color); }
 }
 </style>
