@@ -1,0 +1,4 @@
+# Platform Adapter Service Dependencies
+-r ../../../requirements.txt
+
+# Additional dependencies for platform adapter

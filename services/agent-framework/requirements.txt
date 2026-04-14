@@ -1,0 +1,5 @@
+# Agent Framework Service Dependencies
+-r ../../../requirements.txt
+
+# Additional dependencies for agent framework
+watchfiles>=0.21.0

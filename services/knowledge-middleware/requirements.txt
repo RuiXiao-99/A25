@@ -1,0 +1,4 @@
+# Knowledge Middleware Service Dependencies
+-r ../../../requirements.txt
+
+# Additional dependencies for knowledge middleware
