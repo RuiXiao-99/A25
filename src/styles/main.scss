@@ -1,0 +1,83 @@
+// 定义全局主题变量
+:root {
+  --primary-color: #1890ff;
+  --bg-color-main: #f0f2f5;
+  --bg-color-sidebar: #0f172a; // 深灰蓝色侧边栏
+  --text-color-primary: #334155;
+  --text-color-sidebar: #94a3b8;
+  --header-height: 60px;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 14px;
+  color: var(--text-color-primary);
+  background-color: var(--bg-color-main);
+  -webkit-font-smoothing: antialiased;
+}
+
+// 优雅的细体滚动条
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(144, 147, 153, 0.3);
+  border-radius: 4px;
+  &:hover {
+    background: rgba(144, 147, 153, 0.5);
+  }
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.page-container {
+  min-height: 100%;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 600;
+}
+
+// Element Plus 组件全局优化 (卡片悬浮立体感)
+.el-card {
+  border-radius: 12px !important;
+  border: none !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03) !important;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  
+  &:hover {
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04) !important;
+  }
+
+  .el-card__header {
+    padding: 16px 20px;
+    border-bottom: 1px solid #f1f5f9;
+    font-weight: 600;
+  }
+}
+
+.el-button {
+  border-radius: 6px !important;
+}
+
+.el-input__wrapper {
+  border-radius: 6px !important;
+}
+
+.el-table {
+  border-radius: 8px;
+  overflow: hidden;
+}
