@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EduAgent Platform - 前后端连接测试</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        h1 { text-align: center; margin-bottom: 30px; color: #333; }
+        
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .card h2 {
+            color: #1890ff;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+        
+        .service-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+        
+        .service-item {
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #e8e8e8;
+        }
+        
+        .service-item h3 {
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+        
+        .status {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+        
+        .status.pending { background: #fff7e6; color: #fa8c16; }
+        .status.success { background: #f6ffed; color: #52c41a; }
+        .status.error { background: #fff1f0; color: #f5222d; }
+        
+        .btn {
+            background: #1890ff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px;
+        }
+        
+        .btn:hover { background: #40a9ff; }
+        .btn:disabled { background: #d9d9d9; cursor: not-allowed; }
+        
+        .result {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f6f8fa;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 13px;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .info {
+            background: #e6f7ff;
+            border: 1px solid #91d5ff;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .info code {
+            background: #fff;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔗 EduAgent Platform - 前后端连接测试</h1>
+        
+        <div class="info">
+            <strong>使用说明：</strong><br>
+            1. 确保后端服务已启动（运行 <code>./start.sh start</code>）<br>
+            2. 点击下方"测试所有服务"按钮检查连接状态<br>
+            3. 或单独测试各个服务
+        </div>
+        
+        <div class="card">
+            <h2>📊 服务状态</h2>
+            <div class="service-grid" id="serviceList">
+                <!-- 动态生成 -->
+            </div>
+            <div style="margin-top: 20px;">
+                <button class="btn" onclick="testAllServices()">测试所有服务</button>
+                <button class="btn" onclick="testApiGateway()">测试API网关</button>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2>🧪 API测试</h2>
+            <div>
+                <button class="btn" onclick="testAgentApi()">测试 Agent API</button>
+                <button class="btn" onclick="testKnowledgeApi()">测试 Knowledge API</button>
+                <button class="btn" onclick="testQAApi()">测试 智能问答 API</button>
+            </div>
+            <div class="result" id="testResult">点击按钮测试API...</div>
+        </div>
+        
+        <div class="card">
+            <h2>📋 服务端口映射</h2>
+            <table style="width: 100%; border-collapse: collapse;">
+                <tr style="background: #fafafa;">
+                    <th style="padding: 10px; border: 1px solid #e8e8e8; text-align: left;">服务名称</th>
+                    <th style="padding: 10px; border: 1px solid #e8e8e8; text-align: left;">端口</th>
+                    <th style="padding: 10px; border: 1px solid #e8e8e8; text-align: left;">API路径</th>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #e8e8e8;">API网关</td>
+                    <td style="padding: 10px; border: 1px solid #e8e8e8;">8000</td>
+                    <td style="padding: 10px; border: 1px solid #e8e8e8;">/api/v1/*</td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #e8e8e8;">Agent框架</td>
+                    <td style="padding: 10px; border: 1px solid #e8e8e8;">8001</td>
+                    <td style="padding: 10px; border: 1px solid #e8e8e8;">/api/v1/agents</td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #e8e8e8;">知识中间件</td>
+                    <td style="padding: 10px; border: 1px solid #e8e8e8;">8002</td>
+                    <td style="padding: 10px; border: 1px solid #e8e8e8;">/api/v1/knowledge</td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #e8e8e8;">平台适配层</td>
+                    <td style="padding: 10px; border: 1px solid #e8e8e8;">8003</td>
+                    <td style="padding: 10px; border: 1px solid #e8e8e8;">/api/v1/adapters</td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #e8e8e8;">智能引擎</td>
+                    <td style="padding: 10px; border: 1px solid #e8e8e8;">8005</td>
+                    <td style="padding: 10px; border: 1px solid #e8e8e8;">/api/v1/qa, /grading, /warning, /exercise</td>
+                </tr>
+            </table>
+        </div>
+    </div>
+    
+    <script>
+        const services = [
+            { name: 'API网关', port: 8000, path: '/health' },
+            { name: 'Agent框架', port: 8001, path: '/health' },
+            { name: '知识中间件', port: 8002, path: '/health' },
+            { name: '平台适配层', port: 8003, path: '/health' },
+            { name: '智能引擎', port: 8005, path: '/health' }
+        ];
+        
+        // 初始化服务列表
+        function initServiceList() {
+            const container = document.getElementById('serviceList');
+            container.innerHTML = services.map(s => `
+                <div class="service-item">
+                    <h3>${s.name} <span class="status pending" id="status-${s.port}">待测试</span></h3>
+                    <p>端口: ${s.port}</p>
+                </div>
+            `).join('');
+        }
+        
+        // 测试单个服务
+        async function testService(service) {
+            const statusEl = document.getElementById(`status-${service.port}`);
+            statusEl.className = 'status pending';
+            statusEl.textContent = '测试中...';
+            
+            try {
+                const response = await fetch(`http://localhost:${service.port}${service.path}`, {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                if (response.ok) {
+                    statusEl.className = 'status success';
+                    statusEl.textContent = '正常';
+                    return true;
+                } else {
+                    statusEl.className = 'status error';
+                    statusEl.textContent = '错误';
+                    return false;
+                }
+            } catch (error) {
+                statusEl.className = 'status error';
+                statusEl.textContent = '无法连接';
+                return false;
+            }
+        }
+        
+        // 测试所有服务
+        async function testAllServices() {
+            for (const service of services) {
+                await testService(service);
+            }
+        }
+        
+        // 测试API网关
+        async function testApiGateway() {
+            const resultEl = document.getElementById('testResult');
+            resultEl.textContent = '测试API网关...\n';
+            
+            try {
+                const response = await fetch('http://localhost:8000/');
+                const data = await response.json();
+                resultEl.textContent += '\n✓ API网关响应:\n' + JSON.stringify(data, null, 2);
+            } catch (error) {
+                resultEl.textContent += '\n✗ 连接失败: ' + error.message;
+            }
+        }
+        
+        // 测试Agent API
+        async function testAgentApi() {
+            const resultEl = document.getElementById('testResult');
+            resultEl.textContent = '测试Agent API...\n';
+            
+            try {
+                const response = await fetch('http://localhost:8000/api/v1/agents?page=1&size=10');
+                const data = await response.json();
+                resultEl.textContent = '✓ Agent API响应:\n' + JSON.stringify(data, null, 2);
+            } catch (error) {
+                resultEl.textContent = '✗ 连接失败: ' + error.message + '\n\n';
+                resultEl.textContent += '请确保:\n';
+                resultEl.textContent += '1. API网关在端口8000运行\n';
+                resultEl.textContent += '2. Agent框架在端口8001运行';
+            }
+        }
+        
+        // 测试Knowledge API
+        async function testKnowledgeApi() {
+            const resultEl = document.getElementById('testResult');
+            resultEl.textContent = '测试Knowledge API...\n';
+            
+            try {
+                const response = await fetch('http://localhost:8000/api/v1/knowledge?page=1&size=10');
+                const data = await response.json();
+                resultEl.textContent = '✓ Knowledge API响应:\n' + JSON.stringify(data, null, 2);
+            } catch (error) {
+                resultEl.textContent = '✗ 连接失败: ' + error.message;
+            }
+        }
+        
+        // 测试问答API
+        async function testQAApi() {
+            const resultEl = document.getElementById('testResult');
+            resultEl.textContent = '测试智能问答API...\n';
+            
+            try {
+                const response = await fetch('http://localhost:8000/api/v1/qa/ask', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        question: '什么是Python的装饰器？',
+                        course_id: 'course-001'
+                    })
+                });
+                const data = await response.json();
+                resultEl.textContent = '✓ 问答API响应:\n' + JSON.stringify(data, null, 2);
+            } catch (error) {
+                resultEl.textContent = '✗ 连接失败: ' + error.message;
+            }
+        }
+        
+        // 页面加载时初始化
+        initServiceList();
+    </script>
+</body>
+</html>

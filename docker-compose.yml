@@ -1,0 +1,130 @@
+version: '3.8'
+
+services:
+  # PostgreSQL 数据库
+  postgres:
+    image: postgres:15-alpine
+    container_name: eduagent-postgres
+    environment:
+      POSTGRES_USER: eduagent
+      POSTGRES_PASSWORD: eduagent123
+      POSTGRES_DB: eduagent
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U eduagent"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis 缓存
+  redis:
+    image: redis:7-alpine
+    container_name: eduagent-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # MongoDB 文档存储
+  mongodb:
+    image: mongo:6
+    container_name: eduagent-mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: eduagent
+      MONGO_INITDB_ROOT_PASSWORD: eduagent123
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.runCommand({ ping: 1 })"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # API 网关
+  gateway:
+    build:
+      context: .
+      dockerfile: gateway/Dockerfile
+    container_name: eduagent-gateway
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://eduagent:eduagent123@postgres:5432/eduagent
+      - REDIS_URL=redis://redis:6379/0
+      - MONGODB_URL=mongodb://eduagent:eduagent123@mongodb:27017/eduagent
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+
+  # Agent Framework 服务
+  agent-framework:
+    build:
+      context: .
+      dockerfile: services/agent-framework/Dockerfile
+    container_name: eduagent-agent-framework
+    ports:
+      - "8001:8001"
+    environment:
+      - DATABASE_URL=postgresql://eduagent:eduagent123@postgres:5432/eduagent
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      - gateway
+
+  # Knowledge Middleware 服务
+  knowledge-middleware:
+    build:
+      context: .
+      dockerfile: services/knowledge-middleware/Dockerfile
+    container_name: eduagent-knowledge-middleware
+    ports:
+      - "8002:8002"
+    environment:
+      - DATABASE_URL=postgresql://eduagent:eduagent123@postgres:5432/eduagent
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      - gateway
+
+  # Intelligent Engine 服务
+  intelligent-engine:
+    build:
+      context: .
+      dockerfile: services/intelligent-engine/Dockerfile
+    container_name: eduagent-intelligent-engine
+    ports:
+      - "8005:8005"
+    environment:
+      - DATABASE_URL=postgresql://eduagent:eduagent123@postgres:5432/eduagent
+      - REDIS_URL=redis://redis:6379/0
+      - GLM_API_KEY=${GLM_API_KEY}
+    depends_on:
+      - gateway
+
+  # 前端服务
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: eduagent-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - gateway
+
+volumes:
+  postgres_data:
+  redis_data:
+  mongodb_data:
