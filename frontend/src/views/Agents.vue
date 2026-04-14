@@ -1,218 +1,160 @@
 <template>
-  <div class="page-container">
-    <el-card>
-      <template #header>
-        <div class="card-header">
-          <span>智能体管理</span>
-          <el-button type="primary" @click="createDialogVisible = true">
-            <el-icon><Plus /></el-icon>创建智能体
-          </el-button>
+  <div class="agents-container">
+    <el-card class="box-card" shadow="never">
+      <div class="action-bar">
+        <div class="left">
+          <el-input
+            v-model="searchQuery"
+            placeholder="搜索智能体名称..."
+            prefix-icon="Search"
+            clearable
+            style="width: 300px"
+            @clear="fetchAgents"
+            @keyup.enter="fetchAgents"
+          />
+          <el-button type="primary" @click="fetchAgents" style="margin-left: 12px">搜索</el-button>
         </div>
-      </template>
+        <div class="right">
+          <el-button type="primary" icon="Plus">新建智能体</el-button>
+          <el-button icon="Refresh" @click="fetchAgents">刷新</el-button>
+        </div>
+      </div>
 
-      <!-- 搜索区域 -->
-      <el-form :inline="true" class="search-form">
-        <el-form-item label="类型">
-          <el-select v-model="searchForm.type" placeholder="全部类型" clearable>
-            <el-option label="问答型" value="qa" />
-            <el-option label="批改型" value="grading" />
-            <el-option label="预警型" value="warning" />
-            <el-option label="练习型" value="exercise" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="状态">
-          <el-select v-model="searchForm.status" placeholder="全部状态" clearable>
-            <el-option label="活跃" value="active" />
-            <el-option label="停用" value="inactive" />
-          </el-select>
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" @click="handleSearch">搜索</el-button>
-          <el-button @click="handleReset">重置</el-button>
-        </el-form-item>
-      </el-form>
-
-      <!-- 表格 -->
-      <el-table :data="agentList" stripe v-loading="loading">
-        <el-table-column prop="name" label="名称" />
-        <el-table-column prop="type" label="类型">
-          <template #default="{ row }">
-            <el-tag :type="getTypeTag(row.type)">{{ getTypeName(row.type) }}</el-tag>
+      <el-table 
+        v-loading="loading" 
+        :data="agentsList" 
+        style="width: 100%"
+        :header-cell-style="{ background: '#f8fafc', color: '#475569' }"
+      >
+        <el-table-column prop="id" label="ID" width="80" />
+        <el-table-column prop="name" label="智能体名称" min-width="150">
+          <template #default="scope">
+            <span style="font-weight: 500; color: #0f172a">{{ scope.row.name }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="course_id" label="关联课程" />
-        <el-table-column prop="status" label="状态">
-          <template #default="{ row }">
-            <el-switch v-model="row.status" active-value="active" inactive-value="inactive" />
+        <el-table-column prop="type" label="类型" width="120">
+          <template #default="scope">
+            <el-tag size="small" type="info">{{ scope.row.type || '通用型' }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="created_at" label="创建时间" width="180" />
-        <el-table-column label="操作" width="200">
-          <template #default="{ row }">
-            <el-button type="primary" link @click="handleEdit(row)">编辑</el-button>
-            <el-button type="primary" link @click="handleInvoke(row)">调用</el-button>
-            <el-button type="danger" link @click="handleDelete(row)">删除</el-button>
+        <el-table-column prop="status" label="运行状态" width="120">
+          <template #default="scope">
+            <el-tag 
+              :type="scope.row.status === 'running' ? 'success' : 'danger'"
+              effect="light"
+            >
+              {{ scope.row.status === 'running' ? '运行中' : '已停止' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip />
+        
+        <el-table-column label="操作" width="200" fixed="right">
+          <template #default="scope">
+            <el-button 
+              link 
+              type="primary" 
+              size="small"
+              @click="toggleStatus(scope.row)"
+            >
+              {{ scope.row.status === 'running' ? '停止' : '启动' }}
+            </el-button>
+            <el-button link type="primary" size="small">配置</el-button>
+            <el-button link type="danger" size="small">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
 
-      <!-- 分页 -->
-      <el-pagination
-        v-model:current-page="pagination.page"
-        v-model:page-size="pagination.size"
-        :total="pagination.total"
-        :page-sizes="[10, 20, 50, 100]"
-        layout="total, sizes, prev, pager, next, jumper"
-        class="pagination"
-      />
+      <div class="pagination-wrapper">
+        <el-pagination
+          background
+          layout="total, prev, pager, next"
+          :total="total"
+          :page-size="10"
+        />
+      </div>
     </el-card>
-
-    <!-- 创建对话框 -->
-    <el-dialog v-model="createDialogVisible" title="创建智能体" width="500px">
-      <el-form :model="createForm" label-width="100px">
-        <el-form-item label="名称" required>
-          <el-input v-model="createForm.name" placeholder="请输入智能体名称" />
-        </el-form-item>
-        <el-form-item label="类型" required>
-          <el-select v-model="createForm.type" placeholder="请选择类型">
-            <el-option label="问答型" value="qa" />
-            <el-option label="批改型" value="grading" />
-            <el-option label="预警型" value="warning" />
-            <el-option label="练习型" value="exercise" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="关联课程">
-          <el-select v-model="createForm.course_id" placeholder="请选择课程">
-            <el-option label="Python程序设计" value="course-1" />
-            <el-option label="数据结构" value="course-2" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="AI模型">
-          <el-select v-model="createForm.config.model" placeholder="请选择模型">
-            <el-option label="GLM-4" value="glm-4" />
-            <el-option label="GLM-3-Turbo" value="glm-3-turbo" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="温度参数">
-          <el-slider v-model="createForm.config.temperature" :min="0" :max="2" :step="0.1" show-input />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="createDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleCreate">创建</el-button>
-      </template>
-    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ref, onMounted } from 'vue'
+import { ElMessage } from 'element-plus'
+import request from '@/api/request'
 
+// 响应式状态
 const loading = ref(false)
-const createDialogVisible = ref(false)
+const searchQuery = ref('')
+const agentsList = ref<any[]>([])
+const total = ref(0)
 
-const searchForm = reactive({
-  type: '',
-  status: ''
-})
-
-const createForm = reactive({
-  name: '',
-  type: '',
-  course_id: '',
-  config: {
-    model: 'glm-4',
-    temperature: 0.7,
-    max_tokens: 2048
+// 获取智能体列表 (真正与后端交互的函数)
+const fetchAgents = async () => {
+  loading.value = true
+  try {
+    // 假设你的 agent-framework 微服务提供 /agents 接口
+    // 如果你本地跑了后端，它就会真实的去请求 http://localhost:8000/api/agents
+    const res: any = await request.get('/agents', {
+      params: { keyword: searchQuery.value }
+    })
+    
+    // 适配后端的数据结构，这里假设后端返回一个数组，或者 { list: [], total: x }
+    if (Array.isArray(res)) {
+      agentsList.value = res
+      total.value = res.length
+    } else if (res && res.list) {
+      agentsList.value = res.list
+      total.value = res.total
+    }
+  } catch (error) {
+    console.error('API调用失败，使用演示数据', error)
+    // ⚠️ 如果你后端还没启动或者接口没写好，这里自动降级使用演示数据，保证你能看到 UI 效果
+    setTimeout(() => {
+      agentsList.value = [
+        { id: 1, name: '作业批改助手', type: 'Grading', status: 'running', description: '自动批改 Python 代码作业' },
+        { id: 2, name: '学情预警监测', type: 'Warning', status: 'running', description: '实时监控学生活跃度并预警' },
+        { id: 3, name: '答疑机器人', type: 'QA', status: 'stopped', description: '基于知识库解答学生提问' }
+      ]
+      total.value = 3
+    }, 500)
+  } finally {
+    loading.value = false
   }
-})
-
-const pagination = reactive({
-  page: 1,
-  size: 20,
-  total: 0
-})
-
-const agentList = ref([
-  { id: '1', name: 'Python问答助手', type: 'qa', course_id: 'Python程序设计', status: 'active', created_at: '2025-04-13 10:00' },
-  { id: '2', name: '代码批改助手', type: 'grading', course_id: '数据结构', status: 'active', created_at: '2025-04-12 15:30' }
-])
-
-const getTypeTag = (type: string) => {
-  const map: Record<string, string> = {
-    qa: 'primary',
-    grading: 'success',
-    warning: 'warning',
-    exercise: 'info'
-  }
-  return map[type] || 'info'
 }
 
-const getTypeName = (type: string) => {
-  const map: Record<string, string> = {
-    qa: '问答型',
-    grading: '批改型',
-    warning: '预警型',
-    exercise: '练习型'
-  }
-  return map[type] || type
-}
-
-const handleSearch = () => {
-  // TODO: 实现搜索逻辑
-  ElMessage.info('搜索功能')
-}
-
-const handleReset = () => {
-  searchForm.type = ''
-  searchForm.status = ''
-}
-
-const handleCreate = () => {
-  if (!createForm.name || !createForm.type) {
-    ElMessage.warning('请填写必填项')
-    return
-  }
-  createDialogVisible.value = false
-  ElMessage.success('创建成功')
-}
-
-const handleEdit = (row: any) => {
-  ElMessage.info(`编辑: ${row.name}`)
-}
-
-const handleInvoke = (row: any) => {
-  ElMessage.info(`调用: ${row.name}`)
-}
-
-const handleDelete = (row: any) => {
-  ElMessageBox.confirm('确定要删除该智能体吗？', '提示', {
-    type: 'warning'
-  }).then(() => {
-    ElMessage.success('删除成功')
-  }).catch(() => {})
+// 切换状态按钮操作
+const toggleStatus = (row: any) => {
+  const action = row.status === 'running' ? '停止' : '启动'
+  // 这里可以写向后端发送启动/停止指令的 request 请求
+  // await request.post(`/agents/${row.id}/toggle`)
+  
+  // 前端模拟更新
+  row.status = row.status === 'running' ? 'stopped' : 'running'
+  ElMessage.success(`智能体 ${row.name} 已${action}`)
 }
 
 onMounted(() => {
-  // 加载数据
+  fetchAgents()
 })
 </script>
 
 <style lang="scss" scoped>
-.page-container {
-  .card-header {
+.agents-container {
+  .action-bar {
     display: flex;
     justify-content: space-between;
     align-items: center;
-  }
-
-  .search-form {
     margin-bottom: 20px;
+    
+    .left, .right {
+      display: flex;
+      align-items: center;
+    }
   }
 
-  .pagination {
+  .pagination-wrapper {
     margin-top: 20px;
+    display: flex;
     justify-content: flex-end;
   }
 }
