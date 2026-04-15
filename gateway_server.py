@@ -49,7 +49,7 @@ SERVICES = {
 }
 
 # HTTP客户端
-client = httpx.AsyncClient(timeout=30.0)
+client = httpx.AsyncClient(timeout=30.0, trust_env=False)
 
 
 def get_service_url(path: str) -> str:
